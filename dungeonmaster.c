@@ -6,6 +6,7 @@ Description: This program opens a list of room codes and names and will display 
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -16,13 +17,13 @@ typedef struct {
     char description[1024];
 } Room;
 
-// Removes extra spaces from the beginning and end of a string.
+// Removes extra whitespace from the beginning and end.
 void trim(char text[]) {
     int start = 0;
     int i = 0;
     int end;
 
-    // Skips spaces at the beginning.
+    // Skips spaces at the beginning of the string.
     while (isspace((unsigned char)text[start])) {
         start++;
     }
@@ -53,7 +54,11 @@ void copyText(char destination[], int size, char source[]) {
 int main(int argc, char *argv[]) {
     FILE *file;
     char line[2048];
-    Room room = {"", "", ""};
+    Room current = {"", "", ""};
+    Room *rooms;
+    int count = 0;
+    int capacity = 2;
+    int i;
 
     // Checks if a filename was provided.
     if (argc != 2) {
@@ -68,26 +73,58 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Reads the file one line at a time.
+    // Creates an array with space for two rooms.
+    rooms = malloc(capacity * sizeof(Room));
+    if (rooms == NULL) {
+        printf("Could not allocate memory.\n");
+        fclose(file);
+        return 1;
+    }
+
+    // Reads the file one line at a time until the end.
     while (fgets(line, sizeof(line), file) != NULL) {
 
         // Checks what information the line contains.
         if (strncmp(line, "Room Name:", 10) == 0) {
-            copyText(room.name, sizeof(room.name), line + 10);
+            copyText(current.name, sizeof(current.name), line + 10);
 
         } else if (strncmp(line, "Room Code:", 10) == 0) {
-            copyText(room.code, sizeof(room.code), line + 10);
+            copyText(current.code, sizeof(current.code), line + 10);
 
         } else if (strncmp(line, "Room Description:", 17) == 0) {
-            copyText(room.description, sizeof(room.description), line + 17);
+            copyText(current.description, sizeof(current.description), line + 17);
 
-            // Prints the room after reading its information.
-            printf("Room %s: %s\n", room.code, room.name);
+            // Doubles the array size if there is no more room.
+            if (count == capacity) {
+                capacity = capacity * 2;
+                Room *bigger = realloc(rooms, capacity * sizeof(Room));
+
+                if (bigger == NULL) {
+                    printf("Could not expand memory.\n");
+                    free(rooms);
+                    fclose(file);
+                    return 1;
+                }
+
+                rooms = bigger;
+            }
+
+            // Saves the completed room into the array.
+            rooms[count] = current;
+            count++;
         }
     }
 
     // Closes the file.
     fclose(file);
+
+    // Goes through the array and prints every room.
+    for (i = 0; i < count; i++) {
+        printf("Room %s: %s\n", rooms[i].code, rooms[i].name);
+    }
+
+    // Frees the memory used by the array.
+    free(rooms);
 
     return 0;
 }
